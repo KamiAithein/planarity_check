@@ -1,5 +1,6 @@
 from tkinter import *
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 #height of window
 width, height = 500, 500
@@ -8,7 +9,9 @@ width, height = 500, 500
 v_width = 20
 
 #goes alphabetically and wraps around back to start_char after reaching z
-start_char = 'u'
+start_char = 'a'
+font_size = 20
+font = ImageFont.truetype("arial.ttf", font_size)
 
 root = Tk()
 
@@ -17,6 +20,8 @@ frame.pack()
 
 canvas = Canvas(root, width=width, height=height)
 canvas.pack()
+image = Image.new("RGB", (width, height), "black")
+draw = ImageDraw.Draw(image)
 
 class Vertex:
     def __init__(self, pos, name):
@@ -66,9 +71,14 @@ def click_reset():
 def reset():
     global state
     global label_char
+    global image
+    global draw
+
     selected = set([])
     state = 0
     canvas.delete("all")
+    image = Image.new("RGB", (width, height), "black")
+    draw = ImageDraw.Draw(image)
     #canvas.create_rectangle(0,0,width,height, fill = "black")
     G.reset()
     label_char = start_char
@@ -98,16 +108,23 @@ def select(event, vertex):
     select.add(vertex)
 
 def update_canvas(canvas):
+    global image
+    image = Image.new("RGB", (width, height), "black")
+    draw = ImageDraw.Draw(image)
     canvas.delete("all")
+
     canvas.create_rectangle(0, 0, width, height, fill = "black")
     for e in G.E:
         v1, v2 = e.v_pair
         (x1, y1), (x2, y2) = v1.pos, v2.pos
         canvas.create_line(x1, y1, x2, y2, fill = "white")
+        draw.line((x1, y1, x2, y2), fill = "white")
     for v in G.V:
         x, y = v.pos
         canvas.create_oval(x, y, x, y, width = v_width, outline = 'red' if v in selected else 'white')
         canvas.create_text(x, y, text=v.name)
+        draw.ellipse((x-v_width/2.0, y-v_width/2.0, x+v_width/2.0, y+v_width/2.0), outline = 'red' if v in selected else 'white', width = v_width)
+        draw.text((x-v_width/3, y-v_width/2), text=v.name, fill = "black", font = font)
     
 
 def point_within_circle(c_pos, c_r, pos):
@@ -148,7 +165,8 @@ def mclick(event):
             if point_within_circle(c_pos, v_width/2.0, event_pos) and v not in selected:
                 selected.add(v)
                 add_edge()
-        if(len_1 == len(selected)):
+        if(len_1 == len(selected) and event.y > 0):
+            print(event.y)
             selected = set([])
         state = 0
 
@@ -166,6 +184,23 @@ def mmove(event):
         selected.add(v)
     update_canvas(canvas)
 
+def click_download():
+    image.save("graph.jpg")
+
+def click_remove(event):
+    print("click!")
+    print(selected)
+    for v in selected:
+        print(v)
+        G.V.remove(v)
+        G.E = set([e for e in G.E if v not in e.v_pair])
+        for e in iter(G.E):
+            if v in e.v_pair:
+                G.E.remove(e)
+    while len(selected) > 0:
+        selected.pop()
+
+
 
 reset_b = Button(frame, text="reset", fg="black", command=click_reset)
 reset_b.pack(side = LEFT)
@@ -173,12 +208,14 @@ reset_b.pack(side = LEFT)
 add_v_b = Button(frame, text="add vertex", fg="black", command=click_add_v)
 add_v_b.pack(side = LEFT)
 
+save_b = Button(frame, text="save", fg="black", command=click_download)
+save_b.pack(side = LEFT)
 
 
 root.bind('<Motion>', mmove)
 root.bind('<Button-1>', mclick)
 root.bind('<ButtonRelease-1>', mrelease)
-
+root.bind('r', click_remove)
 
 
 
